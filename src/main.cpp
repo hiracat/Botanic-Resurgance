@@ -8,12 +8,12 @@
 #include <vulkan/vulkan_core.h>
 
 int main() {
-    App app;
+    btr::App app;
     try {
-        std::cout << ANSI_BLINK << "hello world" << ANSI_RESET << std::endl;
-        initWindow(&app.window);
-        initVulkan(&app);
-        mainLoop(&app.window);
+        std::cout << ANSI_COLOR_BLUE << "hello world" << ANSI_RESET << std::endl;
+        btr::initWindow(&app.window);
+        btr::initVulkan(&app);
+        btr::mainLoop(&app.window);
         cleanup(&app);
     } catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;
@@ -23,21 +23,7 @@ int main() {
     return EXIT_SUCCESS;
 }
 
-VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-                                      const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
-    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-    if (func != nullptr) {
-        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
-    } else {
-        return VK_ERROR_EXTENSION_NOT_PRESENT;
-    }
-}
-void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
-    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    if (func != nullptr) {
-        func(instance, debugMessenger, pAllocator);
-    }
-}
+namespace btr {
 
 void initWindow(GLFWwindow** window) {
     glfwInit();
@@ -46,40 +32,11 @@ void initWindow(GLFWwindow** window) {
     *window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Botanic Resurgance", nullptr, nullptr);
 }
 
-VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
-                                             const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
-    std::cerr << ANSI_COLOR_CYAN << "validation layer: " << pCallbackData->pMessage << ANSI_RESET << std::endl;
-    return VK_FALSE;
-}
-
-void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
-    createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-                                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    createInfo.pfnUserCallback = debugCallback;
-}
-
-void setupDebugMessenger(App* app) {
-    if (!App::enableValidationLayers)
-        return;
-
-    VkDebugUtilsMessengerCreateInfoEXT createInfo;
-    populateDebugMessengerCreateInfo(createInfo);
-
-    if (CreateDebugUtilsMessengerEXT(app->instance, &createInfo, nullptr, &app->debugMessenger) != VK_SUCCESS) {
-        throw std::runtime_error("failed to set up debug messenger!");
-    }
-}
-
 void initVulkan(App* app) {
     const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
     createInstance(&app->instance, validationLayers);
     setupDebugMessenger(app);
 }
-
 void createInstance(VkInstance* instance, const std::vector<const char*>& validationLayers) {
     if (App::enableValidationLayers && !checkValidationLayerSupport(validationLayers)) {
         throw std::runtime_error("validation layers requrested but not available");
@@ -156,12 +113,48 @@ std::vector<const char*> getRequiredExtentions() {
     return extentions;
 }
 
+void setupDebugMessenger(App* app) {
+    if (!App::enableValidationLayers)
+        return;
+
+    VkDebugUtilsMessengerCreateInfoEXT createInfo;
+    populateDebugMessengerCreateInfo(createInfo);
+
+    if (CreateDebugUtilsMessengerEXT(app->instance, &createInfo, nullptr, &app->debugMessenger) != VK_SUCCESS) {
+        throw std::runtime_error("failed to set up debug messenger!");
+    }
+}
+
+void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
+    createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    createInfo.pfnUserCallback = debugCallback;
+}
+
+VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+                                      const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
+    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+    if (func != nullptr) {
+        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+    } else {
+        return VK_ERROR_EXTENSION_NOT_PRESENT;
+    }
+}
+VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
+                                             const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
+    std::cerr << ANSI_COLOR_CYAN << "validation layer: " << pCallbackData->pMessage << ANSI_RESET << std::endl;
+    return VK_FALSE;
+}
+
 void mainLoop(GLFWwindow** window) {
     while (!glfwWindowShouldClose(*window)) {
         glfwPollEvents();
     }
 }
-
 void cleanup(App* app) {
     if (App::enableValidationLayers) {
         DestroyDebugUtilsMessengerEXT(app->instance, app->debugMessenger, nullptr);
@@ -171,3 +164,11 @@ void cleanup(App* app) {
     glfwDestroyWindow(app->window);
     glfwTerminate();
 }
+
+void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
+    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+    if (func != nullptr) {
+        func(instance, debugMessenger, pAllocator);
+    }
+}
+} // namespace btr
